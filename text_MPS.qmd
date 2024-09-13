@@ -1,0 +1,127 @@
+---
+title: "text MPS"
+format: html
+---
+
+## Quarto
+
+Here is an example workflow using Torch 0.11.0 with MPS support on Apple Silicon:
+
+```{r}
+library(torch)
+library(openslide)
+# https://openslide.org/
+# no R porting of openslide yet
+
+
+# Create MPS device
+device <- torch_device("mps")
+
+# Load WSI and get slide properties
+wsi <- openslide::open_slide("wsi.svs")
+dim <- openslide::dim(wsi)
+levels <- openslide::levels(wsi)
+
+# Load thumbnail and convert to tensor on MPS  
+thumb <- openslide::read_region(wsi, level=0)
+thumb_tensor <- torch_tensor(thumb, device=device)
+
+# Normalize staining  
+norm_tensor <- thumb_tensor / 255 
+
+# Load tumor region and convert to tensor
+tumor_region <- openslide::read_region(wsi, location=c(100,100), 
+                                       size=c(50,50))
+tumor_tensor <- torch_tensor(tumor_region, device=device)
+
+# Concatenate tensors
+combined <- torch_cat(list(norm_tensor, tumor_tensor), dim=0)
+
+# Segmentation, patching, augmentation, etc...
+
+# Define model
+model <- nn_module(
+  initialize = function() {
+    # Model layers
+  },
+  
+  forward = function(input) {
+    # Forward pass
+  }
+)
+
+# Train loop - executes on MPS  
+for (batch in batches) {
+  output <- model(batch)
+  loss <- loss_fn(output, target)
+  loss$backward()
+  optimizer$step() 
+}
+```
+
+Let me know if you need any clarification or have additional questions!
+
+
+##
+Here is an example workflow using Torch for R, HistopathR, PathAI, and Luz framework on Apple Silicon with MPS:
+
+```{r}
+#| echo: false
+# Load packages
+library(torch)
+library(luz)
+library(HistopathR)
+library(PathAI)
+
+# Verify MPS device 
+device <- luz_device()
+device # Should show 'mps'
+
+# Verify accelerator stats
+accel_stats <- luz_accelerator()
+accel_stats$num_gpus # GPU core count
+accel_stats$num_neural_engines # Neural Engine count
+
+# Load WSI using OpenSlide
+wsi <- openslide::open_slide("wsi.svs") 
+
+# Load level 0 and convert to tensor
+wsi_level0 <- openslide::read_region(wsi, level=0)
+preview_tensor <- torch_tensor(wsi_level0, device=device)
+
+# Normalize  
+preview_normalized <- preview_tensor / 255
+
+# Segment tumor region
+tumor_mask <- segment_regions(wsi) 
+
+# Extract patches
+patches_tensor <- extract_patches(wsi, tumor_mask, 256, device=device) 
+
+# Augment
+aug_tensors <- augment_patches(patches_tensor, 
+                                rotate=10, flip=TRUE)
+
+# Stain normalization
+normalized <- normalize_staining(aug_tensors)  
+
+# Split data
+splits <- split_data(normalized)
+
+# Train model with MPS acceleration
+for (batch in splits$train) {
+  predictions <- model(batch) # MPS enabled 
+  loss = criterion(predictions, targets) 
+  loss.backward()
+  optimizer.step() 
+}
+```
+
+Key points:
+
+- Verify MPS device and accelerator stats using Luz
+- Use MPS for tensor operations via device parameter
+- Leverage HistopathR and PathAI for preprocessing
+- MPS speeds up training loop execution
+
+Let me know if you need any clarification or have additional questions!
